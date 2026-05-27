@@ -1,0 +1,148 @@
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-emby_plus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-emby_plus}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${MEDIA_HUB_IMAGE:-liushuangxidocker/media-hub:latest}
+    restart: unless-stopped
+    command: ["api"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      HTTP_ADDR: :8080
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_ADDR: redis:6379
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      MIGRATIONS_DIR: /app/migrations
+      STATIC_DIR: /app/web
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY}
+      CARD_PLAINTEXT_ENCRYPTION_KEY: ${CARD_PLAINTEXT_ENCRYPTION_KEY}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-starttls}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      TMDB_LANGUAGE: ${TMDB_LANGUAGE:-zh-CN}
+      TMDB_REGION: ${TMDB_REGION:-CN}
+      HDHIVE_BASE_URL: ${HDHIVE_BASE_URL:-https://hdhive.com}
+      HDHIVE_API_KEY: ${HDHIVE_API_KEY:-}
+      HDHIVE_ACCESS_TOKEN: ${HDHIVE_ACCESS_TOKEN:-}
+      HDHIVE_PROXY_URL: ${HDHIVE_PROXY_URL:-}
+      EMBY_IMPORT_DEFAULT_PASSWORD: ${EMBY_IMPORT_DEFAULT_PASSWORD:-}
+      EMBY_COMPAT_LIBRARY_FILE: /data/config/compat-library.json
+      EMBY_COMPAT_MEDIA_IMAGES_FILE: /data/config/media-images.json
+      EMBY_COMPAT_MEDIA_IMAGES_ROOT: /data/media-images
+      EMBY_COMPAT_MEDIA_IMAGES_DEFAULT_FALLBACK: ${EMBY_COMPAT_MEDIA_IMAGES_DEFAULT_FALLBACK:-true}
+      EMBY_COMPAT_PLAYBACK_LINKS_FILE: /data/config/playback-links.json
+      EMBY_COMPAT_STREAM_MODE: ${EMBY_COMPAT_STREAM_MODE:-auto}
+      EMBY_COMPAT_STREAM_CACHE_TTL_SECONDS: ${EMBY_COMPAT_STREAM_CACHE_TTL_SECONDS:-600}
+      EMBY_COMPAT_115_RESOLVER_URL: ${EMBY_COMPAT_115_RESOLVER_URL:-}
+      EMBY_COMPAT_115_ACCESS_TOKEN: ${EMBY_COMPAT_115_ACCESS_TOKEN:-}
+      EMBY_COMPAT_115_COOKIE: ${EMBY_COMPAT_115_COOKIE:-}
+      EMBY_COMPAT_115_ACCOUNTS_JSON: ${EMBY_COMPAT_115_ACCOUNTS_JSON:-}
+      EMBY_COMPAT_115_IP_WINDOWS_FILE: /data/config/115-ip-windows.json
+      EMBY_COMPAT_115_OPEN_DOWN_URL: ${EMBY_COMPAT_115_OPEN_DOWN_URL:-}
+      EMBY_COMPAT_115_WEB_DOWNLOAD_URL: ${EMBY_COMPAT_115_WEB_DOWNLOAD_URL:-}
+      EMBY_COMPAT_115_CACHE_TTL_SECONDS: ${EMBY_COMPAT_115_CACHE_TTL_SECONDS:-600}
+      CLOUDDRIVE2_ENABLED: ${CLOUDDRIVE2_ENABLED:-false}
+      CLOUDDRIVE2_GRPC_ADDR: ${CLOUDDRIVE2_GRPC_ADDR:-}
+      CLOUDDRIVE2_USERNAME: ${CLOUDDRIVE2_USERNAME:-}
+      CLOUDDRIVE2_PASSWORD: ${CLOUDDRIVE2_PASSWORD:-}
+      CLOUDDRIVE2_TOKEN: ${CLOUDDRIVE2_TOKEN:-}
+      MATERIALIZE_GLOBAL_MAX_CONCURRENT: ${MATERIALIZE_GLOBAL_MAX_CONCURRENT:-1}
+      MATERIALIZE_WAIT_TIMEOUT_SECONDS: ${MATERIALIZE_WAIT_TIMEOUT_SECONDS:-20}
+      MATERIALIZE_PROVIDERS: ${MATERIALIZE_PROVIDERS:-}
+      MATERIALIZE_ALLOW_SHARE_FALLBACK: ${MATERIALIZE_ALLOW_SHARE_FALLBACK:-false}
+      FFPROBE_PATH: ${FFPROBE_PATH:-}
+      EMBY_COMPAT_OPPORTUNISTIC_PROBE: ${EMBY_COMPAT_OPPORTUNISTIC_PROBE:-false}
+      EMBY_COMPAT_PROBE_TIMEOUT_SECONDS: ${EMBY_COMPAT_PROBE_TIMEOUT_SECONDS:-8}
+      EMBY_COMPAT_PROBE_CONCURRENCY: ${EMBY_COMPAT_PROBE_CONCURRENCY:-1}
+    volumes:
+      - ./data/config:/data/config
+      - ./data/media-images:/data/media-images
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    image: ${MEDIA_HUB_IMAGE:-liushuangxidocker/media-hub:latest}
+    restart: unless-stopped
+    command: ["worker"]
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_ADDR: redis:6379
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      MIGRATIONS_DIR: /app/migrations
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY}
+      CARD_PLAINTEXT_ENCRYPTION_KEY: ${CARD_PLAINTEXT_ENCRYPTION_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-30}
+      WORKER_BATCH_SIZE: ${WORKER_BATCH_SIZE:-25}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-starttls}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+      EMBY_COMPAT_LIBRARY_FILE: /data/config/compat-library.json
+      EMBY_COMPAT_MEDIA_IMAGES_FILE: /data/config/media-images.json
+      EMBY_COMPAT_MEDIA_IMAGES_ROOT: /data/media-images
+      EMBY_COMPAT_MEDIA_IMAGES_DEFAULT_FALLBACK: ${EMBY_COMPAT_MEDIA_IMAGES_DEFAULT_FALLBACK:-true}
+      EMBY_COMPAT_PLAYBACK_LINKS_FILE: /data/config/playback-links.json
+      FFPROBE_PATH: ${FFPROBE_PATH:-}
+      EMBY_COMPAT_OPPORTUNISTIC_PROBE: ${EMBY_COMPAT_OPPORTUNISTIC_PROBE:-false}
+      EMBY_COMPAT_PROBE_TIMEOUT_SECONDS: ${EMBY_COMPAT_PROBE_TIMEOUT_SECONDS:-8}
+      EMBY_COMPAT_PROBE_CONCURRENCY: ${EMBY_COMPAT_PROBE_CONCURRENCY:-1}
+    volumes:
+      - ./data/config:/data/config
+      - ./data/media-images:/data/media-images
