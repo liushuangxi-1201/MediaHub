@@ -30,6 +30,26 @@ liushuangxidocker/media-hub:latest
 - 数据库迁移文件
 - Emby 兼容网关和 115 相关后台能力
 
+## 功能截图
+
+以下截图为脱敏示意图，仅用于展示功能布局和能力范围。截图内的用户、媒体、账号、CID、目录、播放记录、地区和任务状态均为样例数据，不包含本地运行环境、真实账号、真实 IP、token、cookie、115 直链或签名参数。
+
+### 后台总览
+
+![Media Hub 后台总览脱敏示意截图](assets/screenshots/dashboard-overview.svg)
+
+### 115 网盘管理
+
+![Media Hub 115 网盘管理脱敏示意截图](assets/screenshots/one-one-five-admin.svg)
+
+### 工单与资源处理
+
+![Media Hub 工单管理脱敏示意截图](assets/screenshots/tickets-workspace.svg)
+
+### 用户中心与车队大厅
+
+![Media Hub 用户中心和车队大厅脱敏示意截图](assets/screenshots/user-center-fleet.svg)
+
 ## 功能概览
 
 ### 用户与会员
